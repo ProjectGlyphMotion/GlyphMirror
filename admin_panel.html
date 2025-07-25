@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Project GlyphMirror</title>
+    <meta name="description" content="Manage user applications, view stats, and configure Project GlyphMirror.">
+    <link rel="icon" type="image/x-icon" href="images/project-glyph-motion.ico">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <script>
+    // --- Redirect from GitHub Pages to Custom Domain ---
+
+    // 1. Define the specific hostnames and repository path
+    const githubPagesHostname = "projectglyphmotion.github.io";
+    const repoPath = "/GlyphMirror";
+    const customDomain = "mirror.projectglyphmotion.studio";
+    
+    // 2. Get the current hostname and path where the script is running
+    const currentHostname = window.location.hostname;
+    const currentPath = window.location.pathname;
+
+    // 3. Check if the user is on the default GitHub Pages URL for this specific repository
+    if (currentHostname === githubPagesHostname && currentPath.toLowerCase().startsWith(repoPath.toLowerCase())) {
+        // 4. Construct the new path by removing the repository name from the start
+        const newPath = currentPath.substring(repoPath.length);
+        
+        // 5. If they are, redirect them to the same page on your custom domain
+        const newUrl = `https://${customDomain}${newPath || '/'}${window.location.search}${window.location.hash}`;
+        window.location.replace(newUrl);
+    }
+    </script>
+
+    <style>
+        /* Base styles from other pages for consistency */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0A0F;
+            color: #EDEDF3;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        .background-glow-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; overflow: hidden; pointer-events: none;
+        }
+        .glow-element {
+            position: absolute; border-radius: 50%; opacity: 0.2; mix-blend-mode: screen; filter: blur(100px); will-change: transform, opacity;
+        }
+        .glow-1 {
+            width: clamp(400px, 60vw, 800px); height: clamp(400px, 60vw, 800px); background: radial-gradient(circle at center, #FDA136 0%, rgba(253, 161, 54, 0) 70%); filter: blur(120px); top: -20%; left: -15%; animation: subtleDrift 35s infinite alternate ease-in-out;
+        }
+        .glow-2 {
+            width: clamp(350px, 50vw, 700px); height: clamp(350px, 50vw, 700px); background: radial-gradient(circle at center, #FF5733 0%, rgba(255, 87, 51, 0) 70%); filter: blur(100px); bottom: -15%; right: -10%; animation: subtleDrift 40s infinite alternate-reverse ease-in-out 2s;
+        }
+        @keyframes subtleDrift {
+            0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(calc(8vw - 20px), calc(8vh - 10px)) scale(1.2); }
+        }
+        .content-card {
+            background-color: rgba(10, 10, 15, 0.9); 
+            border: 1px solid rgba(253, 161, 54, 0.25); 
+            border-radius: 0.75rem; 
+            color: #EDEDF3; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); 
+            position: relative; z-index: 10;
+        }
+        .page-title {
+            font-family: 'Press Start 2P', cursive; font-weight: normal; background: linear-gradient(to right, #FDA136, #FFD700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 3px rgba(0,0,0,0.3);
+        }
+        .btn {
+            @apply font-semibold py-2 px-4 shadow-md transition-transform duration-300;
+            border-radius: 8px;
+            position: relative; overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 15px rgba(0,0,0,0.4);
+        }
+        .btn:disabled {
+            @apply cursor-not-allowed bg-slate-600;
+        }
+        .btn-custom-primary {
+            @apply bg-gradient-to-br from-orange-500 to-amber-500 text-white focus:ring-orange-400 shadow-orange-600/40 hover:from-orange-600 hover:to-amber-600;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .btn-success {
+             @apply bg-gradient-to-br from-green-500 to-emerald-500 text-white focus:ring-green-400 shadow-green-600/40 hover:from-green-600 hover:to-emerald-600;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .btn-danger {
+             @apply bg-gradient-to-br from-red-500 to-rose-500 text-white focus:ring-red-400 shadow-red-700/40 hover:from-red-600 hover:to-rose-600;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .status-badge {
+            @apply px-2.5 py-0.5 text-xs font-medium rounded-full;
+        }
+        .status-active {
+            @apply bg-green-900 text-green-300;
+        }
+        .status-inactive {
+            @apply bg-red-900 text-red-300;
+        }
+        .role-badge {
+            @apply px-2.5 py-0.5 text-xs font-semibold rounded-full;
+        }
+        .role-master {
+            @apply bg-yellow-800 text-yellow-200;
+        }
+        .role-admin {
+            @apply bg-blue-800 text-blue-200;
+        }
+        .status-dot {
+            height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 8px; transition: background-color 0.3s ease;
+        }
+        .status-dot.online { background-color: #34D399; animation: pulseDot 1.5s infinite ease-in-out; }
+        .status-dot.offline { background-color: #EF4444; }
+        .status-dot.checking { background-color: #FFD700; animation: pulseDot 1.5s infinite ease-in-out; }
+        @keyframes pulseDot {
+            0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        /* Full-screen Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .modal-overlay.visible {
+            display: flex; /* Show when visible */
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background-color: #0B0A0F;
+            border: 1px solid rgba(253, 161, 54, 0.4);
+            border-radius: 0.75rem;
+            padding: 2rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+
+        /* Notification Banner Styles */
+        #notificationBanner {
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            opacity: 0;
+            transform: translateX(120%); /* Start off-screen */
+            pointer-events: none;
+        }
+        #notificationBanner.show {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="background-glow-container">
+        <div class="glow-element glow-1"></div>
+        <div class="glow-element glow-2"></div>
+    </div>
+
+    <div class="w-full max-w-full mx-auto content-card p-8 md:p-12 shadow-2xl relative z-10">
+        <header class="mb-10 text-center">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl page-title mb-4">Admin Panel</h1>
+            <p id="serverStatus" class="text-center text-slate-300 text-sm font-medium flex items-center justify-center mb-6">
+                <span id="statusDot" class="status-dot"></span>
+                Server Status: <span id="statusText">Checking...</span>
+            </p>
+            <div class="text-center text-slate-300 mb-4">
+                <p class="text-lg">Welcome</p>
+                <div class="flex flex-col sm:flex-row sm:justify-center sm:items-baseline gap-x-2">
+                    <p id="adminEmailDisplay" class="font-bold text-orange-300 text-xl"></p>
+                    <p id="adminRoleDisplay" class="font-bold text-yellow-300 text-base"></p>
+                </div>
+            </div>
+             <div class="flex justify-center items-center gap-4">
+                <a href="index.html" class="btn btn-custom-primary text-sm py-2 px-4">
+                    <i class="fas fa-arrow-left mr-2"></i> Back to Home
+                </a>
+                <button id="adminLogoutBtn" class="btn btn-danger text-sm py-2 px-4">Logout</button>
+            </div>
+        </header>
+
+        <!-- Main Admin Content -->
+        <div class="space-y-16">
+
+            <!-- System Stats Section -->
+            <div>
+                <h2 class="text-2xl font-bold text-slate-100 mb-6 border-b-2 border-orange-500/30 pb-2">System Statistics</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 lg:col-span-2">
+                        <div class="bg-slate-900/50 p-6 rounded-lg text-center flex flex-col justify-center">
+                            <p class="text-3xl font-bold text-orange-400" id="totalUsers">0</p>
+                            <p class="text-slate-400 mt-2 text-sm">Total Users</p>
+                        </div>
+                         <div class="bg-slate-900/50 p-6 rounded-lg text-center flex flex-col justify-center">
+                            <p class="text-3xl font-bold text-orange-400" id="totalFiles">0</p>
+                            <p class="text-slate-400 mt-2 text-sm">Total Files</p>
+                        </div>
+                         <div class="bg-slate-900/50 p-6 rounded-lg text-center flex flex-col justify-center">
+                            <p class="text-3xl font-bold text-orange-400" id="storageUsed">0 GB</p>
+                            <p class="text-slate-400 mt-2 text-sm">Total Storage</p>
+                        </div>
+                        <div class="bg-slate-900/50 p-6 rounded-lg sm:col-span-3">
+                             <h3 class="text-lg font-semibold text-center mb-4">File Breakdown</h3>
+                             <div id="fileTypeStatsList" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <!-- JS will populate this -->
+                                <p class="text-slate-400 text-center col-span-full py-4">Loading file stats...</p>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/50 p-6 rounded-lg flex items-center justify-center min-h-[250px]">
+                        <canvas id="fileTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Applications Section -->
+            <div>
+                <h2 class="text-2xl font-bold text-slate-100 mb-4 border-b-2 border-orange-500/30 pb-2">Pending User Applications</h2>
+                <div id="applicationsContainer" class="space-y-4">
+                    <!-- JS will populate this -->
+                    <p class="text-center py-8 text-slate-400" id="applicationsLoadingMessage">Loading applications...</p>
+                </div>
+            </div>
+            
+            <!-- User Management Section -->
+            <div>
+                <h2 class="text-2xl font-bold text-slate-100 mb-4 border-b-2 border-orange-500/30 pb-2">User Management</h2>
+                <div id="usersContainer" class="space-y-4">
+                   <!-- JS will populate this -->
+                   <p class="text-center py-8 text-slate-400" id="usersLoadingMessage">Loading users...</p>
+                </div>
+            </div>
+
+            <!-- Administrator Accounts Section -->
+            <div>
+                <h2 class="text-2xl font-bold text-slate-100 mb-4 border-b-2 border-orange-500/30 pb-2">Administrator Accounts</h2>
+                <div id="adminsContainer" class="space-y-4">
+                   <!-- JS will populate this -->
+                   <p class="text-center py-8 text-slate-400" id="adminsLoadingMessage">Loading administrators...</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notificationBanner" class="fixed top-5 right-5 bg-slate-900 border text-white px-6 py-4 rounded-lg shadow-lg z-[1100] flex items-center gap-4">
+        <span id="notificationIcon" class="text-xl"></span>
+        <p id="notificationMessage"></p>
+    </div>
+
+    <!-- Terminate User Modal -->
+    <div id="terminateUserModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold text-red-400 mb-4">Terminate User Account</h2>
+            <div id="terminateUserInfo" class="space-y-2 text-slate-300 mb-6">
+                <!-- User info will be populated here by JS -->
+            </div>
+            <div>
+                <label for="terminationReason" class="block text-sm font-medium text-slate-300 mb-2">Reason for Termination</label>
+                <textarea id="terminationReason" rows="3" class="w-full bg-slate-800 border border-slate-600 rounded-md p-2 focus:ring-red-500 focus:border-red-500" placeholder="State a clear reason for this termination..."></textarea>
+            </div>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('terminateUserModal')" class="btn btn-custom-primary">Cancel</button>
+                <button id="confirmTerminationBtn" class="btn btn-danger">Terminate Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remove Admin Modal -->
+    <div id="removeAdminModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-2xl font-bold text-yellow-400 mb-4">Remove Administrator</h2>
+            <p class="text-slate-300 mb-6">
+                Are you sure you want to remove <strong id="adminToRemoveEmail" class="text-orange-300"></strong> from their admin role? They will be demoted to a regular user and will lose all administrative privileges.
+            </p>
+            <div class="flex justify-end gap-4 mt-6">
+                <button onclick="closeModal('removeAdminModal')" class="btn btn-custom-primary">Cancel</button>
+                <button id="confirmRemoveAdminBtn" class="btn btn-danger">Confirm Removal</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- UI Element References ---
+        const adminEmailDisplay = document.getElementById('adminEmailDisplay');
+        const adminRoleDisplay = document.getElementById('adminRoleDisplay');
+        const adminLogoutBtn = document.getElementById('adminLogoutBtn');
+        const applicationsContainer = document.getElementById('applicationsContainer');
+        const usersContainer = document.getElementById('usersContainer');
+        const adminsContainer = document.getElementById('adminsContainer');
+        const serverStatusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const notificationBanner = document.getElementById('notificationBanner');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notificationIcon = document.getElementById('notificationIcon');
+        const applicationsLoadingMessage = document.getElementById('applicationsLoadingMessage');
+        const usersLoadingMessage = document.getElementById('usersLoadingMessage');
+        const adminsLoadingMessage = document.getElementById('adminsLoadingMessage');
+
+
+        // --- Dynamic Backend Configuration ---
+        // This block works for local testing (opening the file directly) and for the live deployed site.
+        const isLocal = window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+        const BACKEND_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://api.mirror.projectglyphmotion.studio';
+
+        // --- Universal Constants (used across multiple files) ---
+        // Define all constants here so they are available in every file, preventing ReferenceErrors.
+        const POLLING_INTERVAL_SERVER_HEALTH = 10000; // A consistent interval for health checks.
+        const HEALTH_STATUS_ENDPOINT = `${BACKEND_URL}/status`;
+
+        // --- Page-Specific Endpoint Constants ---
+        // For apply.html
+        const API_ENDPOINT = `${BACKEND_URL}/apply-form`;
+        const STATUS_API_ENDPOINT = `${BACKEND_URL}/api/application/status`;
+
+        // For admin_login.html
+        const CONFIG_ENDPOINT = `${BACKEND_URL}/api/auth/config`;
+        const LOGIN_ENDPOINT = `${BACKEND_URL}/api/auth/admin_login`;
+
+        // --- Global State ---
+        let chartInstance = null;
+        let currentUser = {
+            email: null,
+            token: null,
+            isMaster: false
+        };
+
+        // --- Utility Functions ---
+        const formatBytes = (bytes, decimals = 2) => {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        };
+
+        // --- API Fetch Helper ---
+        async function apiFetch(endpoint, method = 'GET', body = null) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentUser.token}`
+            };
+
+            const config = {
+                method: method,
+                headers: headers
+            };
+
+            if (body) {
+                config.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint}`, config);
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                         const errorData = await response.json();
+                         showNotification(errorData.message || 'Authentication error. Please log in again.', true);
+                         if (response.status === 401) logout();
+                         return null;
+                    }
+                    const errorData = await response.json().catch(() => ({ message: `Server returned status ${response.status}` }));
+                    throw new Error(errorData.message || 'An unknown server error occurred.');
+                }
+                
+                if (response.status === 204) {
+                    return { success: true };
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                showNotification(error.message || `Failed to fetch data from the server.`, true);
+                return null;
+            }
+        }
+        
+        // --- Notification & Modal Logic ---
+        function showNotification(message, isError = false) {
+            notificationMessage.textContent = message;
+            const bannerClasses = 'fixed top-5 right-5 bg-slate-900 text-white px-6 py-4 rounded-lg shadow-lg z-[1100] flex items-center gap-4';
+            if (isError) {
+                notificationBanner.className = `${bannerClasses} border border-red-500/60 show`;
+                notificationIcon.innerHTML = `<i class="fas fa-times-circle text-red-400"></i>`;
+            } else {
+                notificationBanner.className = `${bannerClasses} border border-green-500/60 show`;
+                notificationIcon.innerHTML = `<i class="fas fa-check-circle text-green-400"></i>`;
+            }
+            
+            setTimeout(() => {
+                notificationBanner.classList.remove('show');
+            }, 4500);
+        }
+
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.add('visible');
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.classList.remove('visible');
+        }
+
+        // --- Server Health Check ---
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/status`);
+                if (response.ok) {
+                    serverStatusText.textContent = 'Online';
+                    statusDot.className = 'status-dot online';
+                } else {
+                    throw new Error('Server responded with an error');
+                }
+            } catch (error) {
+                serverStatusText.textContent = 'Offline';
+                statusDot.className = 'status-dot offline';
+                console.error('Error checking server health:', error.message);
+            }
+        }
+
+        // --- Authentication & Initialization ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            checkServerHealth();
+            setInterval(checkServerHealth, POLLING_INTERVAL_SERVER_HEALTH);
+
+            currentUser.email = localStorage.getItem('glyphmirrorAdminEmail');
+            currentUser.token = localStorage.getItem('glyphmirrorAdminToken');
+
+            if (!currentUser.email || !currentUser.token) {
+                window.location.href = 'admin_login.html';
+                return;
+            }
+            
+            adminEmailDisplay.textContent = currentUser.email;
+
+            const admins = await apiFetch('/api/admins');
+            if (admins) {
+                const adminData = admins.find(a => a.email === currentUser.email);
+                if (adminData) {
+                    currentUser.isMaster = adminData.role === 'Master Admin';
+                    adminRoleDisplay.textContent = `(${adminData.role})`;
+                }
+            } else {
+                 showNotification('Could not verify admin role. Logging out.', true);
+                 setTimeout(logout, 2000);
+                 return;
+            }
+
+            loadAllData();
+        });
+
+        function logout() {
+            localStorage.removeItem('glyphmirrorAdminEmail');
+            localStorage.removeItem('glyphmirrorAdminToken');
+            window.location.href = 'index.html';
+        }
+        adminLogoutBtn.addEventListener('click', logout);
+
+        // --- Data Loading & Rendering Functions ---
+        function loadAllData() {
+            loadStats();
+            loadApplications();
+            loadUsers();
+            loadAdmins();
+        }
+
+        async function loadStats() {
+            const stats = await apiFetch('/api/stats');
+            if (!stats) {
+                console.error("Failed to load stats.");
+                return;
+            }
+
+            document.getElementById('totalUsers').textContent = stats.total_users || 0;
+            document.getElementById('totalFiles').textContent = stats.total_files || 0;
+            document.getElementById('storageUsed').textContent = formatBytes(stats.total_storage_bytes || 0);
+            
+            renderFileBreakdown(stats.file_breakdown_count, stats.file_breakdown_size);
+            renderFileTypeChart(stats.file_breakdown_size);
+        }
+
+        function renderFileBreakdown(counts, sizes) {
+            const container = document.getElementById('fileTypeStatsList');
+            container.innerHTML = '';
+
+            if (Object.keys(counts).length === 0) {
+                container.innerHTML = '<p class="text-slate-400 text-center col-span-full py-4">No files have been mirrored yet.</p>';
+                return;
+            }
+            
+            // Sort categories for consistent display order
+            const sortedCategories = Object.keys(counts).sort();
+
+            for (const category of sortedCategories) {
+                const count = counts[category];
+                const size = sizes[category];
+                const breakdownItem = document.createElement('div');
+                breakdownItem.className = 'text-center bg-slate-800/60 p-3 rounded-md';
+                breakdownItem.innerHTML = `
+                    <p class="font-semibold text-orange-300 capitalize">${category}</p>
+                    <p class="text-sm text-slate-300">${count} files</p>
+                    <p class="text-xs text-slate-400">${formatBytes(size)}</p>
+                `;
+                container.appendChild(breakdownItem);
+            }
+        }
+
+        function renderFileTypeChart(sizes) {
+            const chartCtx = document.getElementById('fileTypeChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const labels = Object.keys(sizes).map(k => k.charAt(0).toUpperCase() + k.slice(1));
+            const data = Object.values(sizes);
+            
+            if (data.length === 0) {
+                // You can optionally display a message on the canvas if no data
+                chartCtx.font = "16px Inter";
+                chartCtx.fillStyle = "#94a3b8"; // slate-400
+                chartCtx.textAlign = "center";
+                chartCtx.fillText("No data to display", chartCtx.canvas.width / 2, chartCtx.canvas.height / 2);
+                return;
+            }
+
+            const chartColors = [
+                '#F97316', // orange-500
+                '#F59E0B', // amber-500
+                '#10B981', // emerald-500
+                '#3B82F6', // blue-500
+                '#8B5CF6', // violet-500
+                '#EC4899', // pink-500
+                '#6B7280', // gray-500
+            ];
+
+            chartInstance = new Chart(chartCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Storage by Type',
+                        data: data,
+                        backgroundColor: chartColors,
+                        borderColor: '#0B0A0F',
+                        borderWidth: 2,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#EDEDF3',
+                                font: {
+                                    family: "'Inter', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += formatBytes(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadApplications() {
+            applicationsContainer.innerHTML = '';
+            applicationsLoadingMessage.style.display = 'block';
+
+            const applications = await apiFetch('/api/applications');
+            applicationsLoadingMessage.style.display = 'none';
+
+            if (!applications) {
+                applicationsContainer.innerHTML = '<p class="text-center py-8 text-red-400">Failed to load applications. Check server logs.</p>';
+                return;
+            }
+
+            if (applications.length === 0) {
+                applicationsContainer.innerHTML = '<p class="text-center py-8 text-slate-400">No pending applications.</p>';
+                return;
+            }
+            applications.forEach(app => {
+                const appCard = document.createElement('div');
+                appCard.className = 'bg-slate-800/50 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4';
+                appCard.innerHTML = `
+                    <div class="flex-1">
+                        <p class="font-semibold text-slate-100">${app.name} <span class="text-xs text-slate-400 font-normal">(${app.email})</span></p>
+                        <p class="text-sm text-slate-300 mt-1 italic">"${app.reason}"</p>
+                    </div>
+                    <div class="font-semibold text-orange-400 text-center">${app.requested_storage_gb} GB</div>
+                    <div class="flex gap-2 self-end md:self-center">
+                        <button class="btn btn-success text-xs py-1 px-3" data-action="approve" data-email="${app.email}">Approve</button>
+                        <button class="btn btn-danger text-xs py-1 px-3" data-action="deny" data-email="${app.email}">Deny</button>
+                    </div>
+                `;
+                applicationsContainer.appendChild(appCard);
+            });
+        }
+
+        async function loadUsers() {
+            usersContainer.innerHTML = '';
+            usersLoadingMessage.style.display = 'block';
+
+            const users = await apiFetch('/api/users');
+            usersLoadingMessage.style.display = 'none';
+
+            if (!users) {
+                usersContainer.innerHTML = '<p class="text-center py-8 text-red-400">Failed to load users. Check server logs.</p>';
+                return;
+            }
+
+            if (users.length === 0) {
+                usersContainer.innerHTML = '<p class="text-center py-8 text-slate-400">No users found.</p>';
+                return;
+            }
+            users.forEach(user => {
+                const userCard = document.createElement('div');
+                userCard.className = 'bg-slate-800/50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-5 gap-4 items-center';
+                
+                let statusClass, tenure, actionButtons = '';
+                const joinDate = new Date(user.joined_at);
+
+                if (user.status === 'Terminated') {
+                    statusClass = 'status-inactive';
+                    tenure = `Terminated on ${new Date(user.terminated_at).toLocaleDateString()}`;
+                } else if (user.status === 'Active') {
+                    statusClass = 'status-active';
+                    tenure = `Active for ${Math.floor((new Date() - joinDate) / (1000 * 60 * 60 * 24))} days`;
+                } else {
+                    statusClass = 'status-inactive';
+                    tenure = `Status: ${user.status}`;
+                }
+
+                if (currentUser.isMaster) {
+                    if (user.status !== 'Terminated') {
+                        actionButtons = `<button class="btn btn-danger text-xs py-1 px-3 w-full text-center" data-action="terminate" data-user='${JSON.stringify(user)}'><i class="fas fa-user-slash mr-2"></i>Terminate</button>`;
+                    } else {
+                        actionButtons = `<p class="text-xs text-center text-red-400/80">Account Terminated</p>`;
+                    }
+                }
+
+                const usagePercent = user.quota_gb > 0 ? (user.usage_bytes / (user.quota_gb * 1024 * 1024 * 1024)) * 100 : 0;
+                
+                userCard.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-slate-100">${user.email}</p>
+                        <p class="text-xs text-slate-400">Joined: ${joinDate.toLocaleDateString()}</p>
+                    </div>
+                    <div class="text-center">
+                        <span class="status-badge ${statusClass}">${user.status}</span>
+                        <p class="text-xs text-slate-400 mt-1">${tenure}</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-sm text-center">${formatBytes(user.usage_bytes)} / ${user.quota_gb} GB</p>
+                        <div class="w-full bg-slate-700 rounded-full h-2 mt-1">
+                            <div class="bg-orange-500 h-2 rounded-full" style="width: ${usagePercent}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-slate-400 text-xs text-center">${user.quota_history || 'N/A'}</div>
+                    <div class="flex flex-col gap-2 items-center">
+                         ${actionButtons}
+                    </div>
+                `;
+                usersContainer.appendChild(userCard);
+            });
+        }
+        
+        async function loadAdmins() {
+            adminsContainer.innerHTML = '';
+            adminsLoadingMessage.style.display = 'block';
+
+            const admins = await apiFetch('/api/admins');
+            adminsLoadingMessage.style.display = 'none';
+
+            if (!admins) {
+                adminsContainer.innerHTML = '<p class="text-center py-8 text-red-400">Failed to load administrators. Check server logs.</p>';
+                return;
+            }
+
+            if (admins.length === 0) {
+                adminsContainer.innerHTML = '<p class="text-center py-8 text-slate-400">No administrators found.</p>';
+                return;
+            }
+
+            admins.forEach(admin => {
+                const isUserMaster = admin.role === 'Master Admin';
+                const roleClass = isUserMaster ? 'role-master' : 'role-admin';
+                
+                let actionButton = '';
+                if (currentUser.isMaster && !isUserMaster && admin.email !== currentUser.email) {
+                    actionButton = `<button class="btn btn-danger text-xs py-1 px-3" data-action="remove-admin" data-email="${admin.email}">Remove Admin</button>`;
+                }
+
+                const adminCard = document.createElement('div');
+                adminCard.className = 'bg-slate-800/50 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2';
+                adminCard.innerHTML = `
+                    <div>
+                        <p class="font-medium">${admin.email}</p>
+                    </div>
+                    <div class="flex items-center gap-4 mt-2 sm:mt-0">
+                        <span class="role-badge ${roleClass}">${admin.role}</span>
+                        ${actionButton}
+                    </div>
+                `;
+                adminsContainer.appendChild(adminCard);
+            });
+        }
+
+        // --- Event Delegation for Actions ---
+        document.body.addEventListener('click', async (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const email = target.dataset.email;
+
+            if (action === 'approve') {
+                target.disabled = true;
+                target.textContent = 'Approving...';
+                const result = await apiFetch('/api/application/approve', 'POST', { email });
+                if (result && result.success) {
+                    showNotification(`User ${email} approved successfully.`);
+                    loadAllData();
+                } else {
+                    target.disabled = false;
+                    target.textContent = 'Approve';
+                }
+            }
+
+            if (action === 'deny') {
+                target.disabled = true;
+                target.textContent = 'Denying...';
+                const result = await apiFetch('/api/application/deny', 'POST', { email });
+                if (result && result.success) {
+                    showNotification(`Application for ${email} has been denied.`);
+                    loadApplications();
+                } else {
+                    target.disabled = false;
+                    target.textContent = 'Deny';
+                }
+            }
+            
+            if (action === 'terminate') {
+                const user = JSON.parse(target.dataset.user);
+                openTerminateModal(user);
+            }
+
+            if (action === 'remove-admin') {
+                openRemoveAdminModal(email);
+            }
+        });
+
+        // --- Modal Action Handlers ---
+        function openTerminateModal(user) {
+            const userInfoContainer = document.getElementById('terminateUserInfo');
+            userInfoContainer.innerHTML = `
+                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Status:</strong> ${user.status}</p>
+                <p><strong>Joined:</strong> ${new Date(user.joined_at).toLocaleDateString()}</p>
+                <p><strong>Storage Usage:</strong> ${formatBytes(user.usage_bytes)} / ${user.quota_gb} GB</p>
+            `;
+            document.getElementById('terminationReason').value = '';
+            openModal('terminateUserModal');
+
+            document.getElementById('confirmTerminationBtn').onclick = async () => {
+                const reason = document.getElementById('terminationReason').value.trim();
+                if (!reason) {
+                    showNotification('A reason for termination is required.', true);
+                    return;
+                }
+
+                const button = document.getElementById('confirmTerminationBtn');
+                button.disabled = true;
+                button.textContent = 'Terminating...';
+
+                const result = await apiFetch('/api/user/terminate', 'POST', { email: user.email, reason: reason });
+
+                if (result && result.success) {
+                    showNotification(`User ${user.email} has been terminated.`);
+                    closeModal('terminateUserModal');
+                    loadUsers();
+                }
+
+                button.disabled = false;
+                button.textContent = 'Terminate Account';
+            };
+        }
+
+        function openRemoveAdminModal(email) {
+            document.getElementById('adminToRemoveEmail').textContent = email;
+            openModal('removeAdminModal');
+
+            document.getElementById('confirmRemoveAdminBtn').onclick = () => {
+                showNotification('Remove Admin feature is not yet implemented in the backend.', true);
+                closeModal('removeAdminModal');
+            };
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# config.yml for Project GlyphMirror
+# The ID of your Cloudflare Tunnel.
+tunnel: <85f936d1-aa75-4e5a-a2fc-1a1da0f85306>
+
+# The path to your Cloudflare Tunnel credentials file.
+# On Linux/macOS: ~/.cloudflared/<YOUR_TUNNEL_ID_HERE>.json
+# On Windows: C:\Users\<your-user>\.cloudflared\<YOUR_TUNNEL_ID_HERE>.json
+credentials-file: /home/hers/.cloudflared/85f936d1-aa75-4e5a-a2fc-1a1da0f85306.json
+
+ingress:
+  # This rule routes traffic from your API subdomain to your local Flask app.
+  - hostname: api.mirror.projectglyphmotion.studio
+    service: http://localhost:5000 # Your Flask app's local address
+
+  # This is a fallback rule.
+  - service: http_status:404

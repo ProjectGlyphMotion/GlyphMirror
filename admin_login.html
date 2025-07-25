@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Project GlyphMirror</title>
+    <meta name="description" content="Secure administrative access to Project GlyphMirror.">
+    <link rel="icon" type="image/x-icon" href="images/project-glyph-motion.ico">
+    
+    <!-- Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <script>
+    // --- Redirect from GitHub Pages to Custom Domain ---
+
+    // 1. Define the specific hostnames and repository path
+    const githubPagesHostname = "projectglyphmotion.github.io";
+    const repoPath = "/GlyphMirror";
+    const customDomain = "mirror.projectglyphmotion.studio";
+    
+    // 2. Get the current hostname and path where the script is running
+    const currentHostname = window.location.hostname;
+    const currentPath = window.location.pathname;
+
+    // 3. Check if the user is on the default GitHub Pages URL for this specific repository
+    if (currentHostname === githubPagesHostname && currentPath.toLowerCase().startsWith(repoPath.toLowerCase())) {
+        // 4. Construct the new path by removing the repository name from the start
+        const newPath = currentPath.substring(repoPath.length);
+        
+        // 5. If they are, redirect them to the same page on your custom domain
+        const newUrl = `https://${customDomain}${newPath || '/'}${window.location.search}${window.location.hash}`;
+        window.location.replace(newUrl);
+    }
+    </script>
+
+    <style>
+        /* This CSS is a direct copy from your other pages to ensure a consistent UI */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0A0F;
+            color: #EDEDF3;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+        .background-glow-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; overflow: hidden; pointer-events: none;
+        }
+        .glow-element {
+            position: absolute; border-radius: 50%; opacity: 0.2; mix-blend-mode: screen; filter: blur(100px); will-change: transform, opacity;
+        }
+        .glow-1 {
+            width: clamp(400px, 60vw, 800px); height: clamp(400px, 60vw, 800px); background: radial-gradient(circle at center, #FDA136 0%, rgba(253, 161, 54, 0) 70%); filter: blur(120px); top: -20%; left: -15%; animation: subtleDrift 35s infinite alternate ease-in-out;
+        }
+        .glow-2 {
+            width: clamp(350px, 50vw, 700px); height: clamp(350px, 50vw, 700px); background: radial-gradient(circle at center, #FF5733 0%, rgba(255, 87, 51, 0) 70%); filter: blur(100px); bottom: -15%; right: -10%; animation: subtleDrift 40s infinite alternate-reverse ease-in-out 2s;
+        }
+        @keyframes subtleDrift {
+            0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(calc(8vw - 20px), calc(8vh - 10px)) scale(1.2); }
+        }
+        .content-card {
+            background-color: rgba(10, 10, 15, 0.85); border: 1px solid rgba(253, 161, 54, 0.25); border-radius: 0.75rem; color: #EDEDF3; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); position: relative; z-index: 10;
+        }
+        .page-title {
+            font-family: 'Press Start 2P', cursive; font-weight: normal; background: linear-gradient(to right, #FDA136, #FFD700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 3px rgba(0,0,0,0.3);
+        }
+        .btn {
+            @apply font-semibold py-2 px-4 shadow-md transition-transform duration-300;
+            border-radius: 8px;
+            position: relative; overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 15px rgba(0,0,0,0.4);
+        }
+        .btn-custom-primary {
+            @apply bg-gradient-to-br from-orange-500 to-amber-500 text-white focus:ring-orange-400 shadow-orange-600/40 hover:from-orange-600 hover:to-amber-600;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .info-banner {
+            background-color: rgba(253, 161, 54, 0.1); border: 1px solid rgba(253, 161, 54, 0.3); color: #FED7AA; border-left-width: 4px; border-left-color: #FDA136;
+        }
+        .info-banner.error-banner {
+            background-color: rgba(255, 0, 0, 0.1); border-color: rgba(255, 0, 0, 0.3); border-left-color: #FF5733; color: #FFD7D7;
+        }
+        .info-banner.success-banner {
+            background-color: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); border-left-color: #34D399; color: #C6F6D5;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-8 px-4">
+    <div class="background-glow-container">
+        <div class="glow-element glow-1"></div>
+        <div class="glow-element glow-2"></div>
+    </div>
+
+    <div class="w-full max-w-md mx-auto content-card p-8 md:p-10 shadow-2xl relative z-10">
+        <header class="mb-8 text-center">
+            <h1 class="text-2xl sm:text-3xl page-title mb-6">Admin Access</h1>
+            <p class="text-center text-slate-300">
+                Sign in with your authorized Google account.
+            </p>
+        </header>
+
+        <!-- Container for the Google Sign-In Button -->
+        <div id="googleSignInButtonContainer" class="flex justify-center">
+             <!-- The Google Library will render the button here -->
+             <div id="buttonSpinner" class="flex items-center justify-center text-slate-300">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Loading...</span>
+            </div>
+        </div>
+
+        <div id="loginStatusMessage" class="mt-6 p-4 info-banner rounded-lg hidden text-sm flex items-start">
+            <svg id="statusIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6 inline-block mr-3 flex-shrink-0"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94l-1.72-1.72Z" clip-rule="evenodd" /></svg>
+            <p id="messageText" class="font-medium"></p>
+        </div>
+        
+        <div class="text-center mt-6">
+            <a href="index.html" class="text-sm text-orange-400 hover:text-orange-300 transition-colors duration-200">
+                &larr; Back to Home
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const loginStatusMessage = document.getElementById('loginStatusMessage');
+        const messageText = document.getElementById('messageText');
+        const statusIcon = document.getElementById('statusIcon');
+        const googleSignInButtonContainer = document.getElementById('googleSignInButtonContainer');
+        const buttonSpinner = document.getElementById('buttonSpinner');
+
+        // --- Dynamic Backend Configuration ---
+        // This block works for local testing (opening the file directly) and for the live deployed site.
+        const isLocal = window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+        const BACKEND_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://api.mirror.projectglyphmotion.studio';
+
+        // --- Universal Constants (used across multiple files) ---
+        // Define all constants here so they are available in every file, preventing ReferenceErrors.
+        const POLLING_INTERVAL_SERVER_HEALTH = 10000; // A consistent interval for health checks.
+        const HEALTH_STATUS_ENDPOINT = `${BACKEND_URL}/status`;
+
+        // --- Page-Specific Endpoint Constants ---
+        // For apply.html
+        const API_ENDPOINT = `${BACKEND_URL}/apply-form`;
+        const STATUS_API_ENDPOINT = `${BACKEND_URL}/api/application/status`;
+
+        // For admin_login.html
+        const CONFIG_ENDPOINT = `${BACKEND_URL}/api/auth/config`;
+        const LOGIN_ENDPOINT = `${BACKEND_URL}/api/auth/admin_login`;
+
+        // --- Helper Functions ---
+        function showLoginMessage(message, isError = true) {
+            messageText.textContent = message;
+            loginStatusMessage.classList.remove('hidden', 'error-banner', 'success-banner');
+            
+            if (isError) {
+                loginStatusMessage.classList.add('error-banner');
+                statusIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94l-1.72-1.72Z" clip-rule="evenodd" />`;
+            } else {
+                loginStatusMessage.classList.add('success-banner');
+                statusIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd" />`;
+            }
+        }
+
+        // --- Google Sign-In Logic ---
+
+        // This function is the callback that Google will call after a successful sign-in.
+        async function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token received from Google.");
+            showLoginMessage('Verifying admin status with server...', false);
+            
+            try {
+                // Send the token to the backend for secure verification
+                const backendResponse = await fetch(LOGIN_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: response.credential })
+                });
+
+                const data = await backendResponse.json();
+
+                if (backendResponse.ok && data.success) {
+                    showLoginMessage('Admin verified! Redirecting to panel...', false);
+                    
+                    // Store the token and user info in localStorage
+                    localStorage.setItem('glyphmirrorAdminToken', response.credential);
+                    localStorage.setItem('glyphmirrorAdminEmail', data.email);
+                    
+                    setTimeout(() => {
+                        window.location.href = 'admin_panel.html';
+                    }, 1500);
+                } else {
+                    // Show the specific error message from the backend
+                    showLoginMessage(data.message || 'An unknown error occurred.', true);
+                }
+
+            } catch (error) {
+                console.error("Error during backend verification:", error);
+                showLoginMessage('Could not connect to the server to verify login. Please ensure the backend is running.', true);
+            }
+        }
+
+        // This function runs when the page loads.
+        window.onload = async function () {
+            try {
+                // 1. Fetch the Google Client ID from our backend
+                const response = await fetch(CONFIG_ENDPOINT);
+                if (!response.ok) {
+                    throw new Error('Could not fetch configuration from server.');
+                }
+                const config = await response.json();
+                const GOOGLE_CLIENT_ID = config.client_id;
+
+                if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith("YOUR_GOOGLE_CLIENT_ID")) {
+                     throw new Error('Invalid Google Client ID received from server.');
+                }
+
+                // 2. Initialize the Google Identity Services library
+                google.accounts.id.initialize({
+                    client_id: GOOGLE_CLIENT_ID,
+                    callback: handleCredentialResponse
+                });
+
+                // 3. Render the official Google Sign-In button
+                google.accounts.id.renderButton(
+                    googleSignInButtonContainer,
+                    { theme: "outline", size: "large", type: "standard", text: "signin_with" }
+                );
+                
+                // Hide the spinner and show the button
+                buttonSpinner.style.display = 'none';
+
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                showLoginMessage(error.message, true);
+                googleSignInButtonContainer.innerHTML = '<p class="text-red-400 text-center">Google Sign-In could not be initialized.</p>';
+                buttonSpinner.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

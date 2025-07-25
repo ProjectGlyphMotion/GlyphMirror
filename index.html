@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project GlyphMirror - Secure File Mirroring</title>
+    <meta name="description" content="A private, secure service to mirror and manage your files, powered by Google Drive.">
+    <link rel="icon" type="image/x-icon" href="images/project-glyph-motion.ico">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Sign-In Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+    // --- Redirect from GitHub Pages to Custom Domain ---
+
+    // 1. Define the specific hostnames and repository path
+    const githubPagesHostname = "projectglyphmotion.github.io";
+    const repoPath = "/GlyphMirror";
+    const customDomain = "mirror.projectglyphmotion.studio";
+    
+    // 2. Get the current hostname and path where the script is running
+    const currentHostname = window.location.hostname;
+    const currentPath = window.location.pathname;
+
+    // 3. Check if the user is on the default GitHub Pages URL for this specific repository
+    if (currentHostname === githubPagesHostname && currentPath.toLowerCase().startsWith(repoPath.toLowerCase())) {
+        // 4. Construct the new path by removing the repository name from the start
+        const newPath = currentPath.substring(repoPath.length);
+        
+        // 5. If they are, redirect them to the same page on your custom domain
+        const newUrl = `https://${customDomain}${newPath || '/'}${window.location.search}${window.location.hash}`;
+        window.location.replace(newUrl);
+    }
+    </script>
+
+    <style>
+        /* Base styles from Project GlyphMotion for UI consistency */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0B0A0F;
+            color: #EDEDF3;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+        .background-glow-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; overflow: hidden; pointer-events: none;
+        }
+        .glow-element {
+            position: absolute; border-radius: 50%; opacity: 0.2; mix-blend-mode: screen; filter: blur(100px); will-change: transform, opacity;
+        }
+        .glow-1 {
+            width: clamp(400px, 60vw, 800px); height: clamp(400px, 60vw, 800px); background: radial-gradient(circle at center, #FDA136 0%, rgba(253, 161, 54, 0) 70%); filter: blur(120px); top: -20%; left: -15%; animation: subtleDrift 35s infinite alternate ease-in-out;
+        }
+        .glow-2 {
+            width: clamp(350px, 50vw, 700px); height: clamp(350px, 50vw, 700px); background: radial-gradient(circle at center, #FF5733 0%, rgba(255, 87, 51, 0) 70%); filter: blur(100px); bottom: -15%; right: -10%; animation: subtleDrift 40s infinite alternate-reverse ease-in-out 2s;
+        }
+        @keyframes subtleDrift {
+            0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(calc(4vw - 10px), calc(4vh - 5px)) scale(1.1); } 100% { transform: translate(0, 0) scale(1); }
+        }
+        .content-card {
+            background-color: rgba(10, 10, 15, 0.85); 
+            border: 1px solid rgba(253, 161, 54, 0.25); 
+            border-radius: 0.75rem; color: #EDEDF3; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); 
+            position: relative; z-index: 10;
+            transition: max-width 0.5s ease-in-out; /* Smooth transition for expand/compact */
+        }
+        .page-title {
+            font-family: 'Press Start 2P', cursive; font-weight: normal; background: linear-gradient(to right, #FDA136, #FFD700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 2px 3px rgba(0,0,0,0.3);
+        }
+        .info-banner {
+            background-color: rgba(253, 161, 54, 0.1); border: 1px solid rgba(253, 161, 54, 0.3); color: #FED7AA; border-left-width: 4px; border-left-color: #FDA136;
+        }
+        .info-banner.error-banner {
+            background-color: rgba(255, 0, 0, 0.1); border-color: rgba(255, 0, 0, 0.3); border-left-color: #FF5733; color: #FFD7D7;
+        }
+        .info-banner.success-banner {
+            background-color: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); border-left-color: #34D399; color: #C6F6D5;
+        }
+        .btn {
+            @apply font-semibold py-2 px-4 shadow-md transition-transform duration-300;
+            border-radius: 8px; /* Slightly less rounded corners */
+            position: relative; overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 15px rgba(0,0,0,0.4);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn::after {
+            content: ''; position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.3); animation: ripple 0.6s linear forwards; opacity: 0; transform: scale(0); pointer-events: none; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+        }
+        .btn.clicked::after { animation: ripple 0.6s linear forwards; }
+        @keyframes ripple {
+            0% { transform: translate(-50%, -50%) scale(0.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+        .btn-custom-primary {
+            @apply bg-gradient-to-br from-orange-500 to-amber-500 text-white focus:ring-orange-400 shadow-orange-600/40 hover:from-orange-600 hover:to-amber-600;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .btn-nav {
+            background-color: transparent;
+            border: 1px solid transparent;
+            color: #FED7AA;
+            box-shadow: 0 0 0 1px rgba(253, 161, 54, 0.5); /* More prominent outline */
+        }
+        .btn-nav:hover {
+            background-color: rgba(253, 161, 54, 0.15);
+            border-color: rgba(253, 161, 54, 0.7);
+        }
+        .status-dot {
+            height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 8px; transition: background-color 0.3s ease;
+        }
+        .status-dot.online { background-color: #34D399; animation: pulseDot 1.5s infinite ease-in-out; }
+        .status-dot.offline { background-color: #EF4444; }
+        .status-dot.checking { background-color: #FFD700; animation: pulseDot 1.5s infinite ease-in-out; }
+        @keyframes pulseDot {
+            0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        /* --- Styles for Expandable Gallery --- */
+        .gallery-controls {
+            display: grid;
+            grid-template-rows: 0fr; /* Start with 0fraction height */
+            opacity: 0;
+            transition: grid-template-rows 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+        .gallery-controls.expanded {
+            grid-template-rows: 1fr; /* Expand to 1fraction height */
+            opacity: 1;
+        }
+        .gallery-controls > div {
+             overflow: hidden;
+        }
+        .control-btn {
+            @apply font-semibold py-2 px-4 shadow-md transition-all duration-300;
+            border-radius: 6px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            color: #FED7AA;
+            box-shadow: 0 0 0 1.5px rgba(253, 161, 54, 0.6);
+        }
+        .control-btn:hover {
+            background-color: rgba(253, 161, 54, 0.2);
+            border-color: #FDA136;
+            transform: translateY(-1px);
+        }
+        .control-btn.active {
+            background-color: rgba(253, 161, 54, 0.25);
+            color: #fde047; /* Tailwind's yellow-300 */
+            border-color: rgba(253, 161, 54, 0.7);
+            box-shadow: 0 0 0 1.5px rgba(253, 161, 54, 0.9);
+        }
+        
+        /* --- Redesigned File Card Styles --- */
+        .file-card {
+            background: rgba(30, 41, 59, 0.6); /* slate-800/60 */
+            border-radius: 0.75rem; /* rounded-lg */
+            border: 1px solid rgba(249, 115, 22, 0.2); /* orange-500/20 */
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .file-card:hover {
+            border-color: rgba(249, 115, 22, 0.5); /* orange-500/50 */
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        .file-card-preview-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background-color: #0B0A0F;
+            cursor: pointer;
+        }
+        .file-card-preview-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .file-card-preview-content iframe,
+        .file-card-preview-content img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: 0;
+        }
+        .play-overlay-icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.4);
+            color: white;
+            font-size: 3rem; /* 48px */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* Let clicks pass through to the wrapper */
+        }
+        .file-card-preview-wrapper:hover .play-overlay-icon {
+            opacity: 1;
+        }
+        .play-overlay-icon i {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+        /* Hide play icon when media is active for audio */
+        .file-card-preview-wrapper[data-is-playing="true"][data-file-type="audio"] .play-overlay-icon {
+            opacity: 0;
+        }
+        .file-card-info {
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.5); /* slate-900/50 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .file-card-details {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0; /* Prevents text from overflowing */
+        }
+        .file-type-icon {
+            font-size: 1.5rem;
+            color: #FDA136;
+            flex-shrink: 0;
+        }
+        .file-text-details {
+            min-width: 0;
+        }
+        .file-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        .card-action-btn {
+            background-color: rgba(51, 65, 85, 0.7); /* slate-700/70 */
+            color: #cbd5e1;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(253, 161, 54, 0.3);
+        }
+        .card-action-btn:hover {
+            background-color: #fde047;
+            color: #0B0A0F;
+            transform: scale(1.1);
+            border-color: #fde047;
+        }
+        .card-action-btn.delete:hover {
+            background-color: #ef4444;
+            color: white;
+            border-color: #ef4444;
+        }
+    </style>
+</head>
+<body class="min-h-screen py-8 px-4">
+    <div class="background-glow-container">
+        <div class="glow-element glow-1"></div>
+        <div class="glow-element glow-2"></div>
+    </div>
+
+    <div id="mainContentCard" class="w-full max-w-7xl mx-auto content-card p-8 md:p-12 shadow-2xl relative z-10">
+        <header class="mb-10 text-center">
+            <h1 class="text-2xl sm:text-3xl md:text-4xl page-title mb-6">Project GlyphMirror</h1>
+            <p class="text-center text-slate-300">
+                A private, secure service to mirror and manage your files.
+            </p>
+            <p id="serverStatus" class="text-center text-slate-300 text-sm font-medium flex items-center justify-center mt-4 mb-6">
+                <span id="statusDot" class="status-dot"></span>
+                Server Status: <span id="statusText">Checking...</span>
+            </p>
+            <div id="adminLoginContainer" class="text-center">
+                 <a href="admin_login.html" id="adminLoginBtn" class="btn btn-nav text-sm py-1 px-3">Admin Login</a>
+            </div>
+        </header>
+
+        <div id="loggedOutView" class="text-center">
+            <p class="text-lg text-slate-300 mb-6">Please sign in with your Google account to access the service or apply for an account if you are new.</p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <div id="googleSignInBtnContainer"></div>
+                <a href="apply.html" class="btn btn-custom-primary text-lg py-3 px-6">
+                    Apply for an Account
+                </a>
+            </div>
+        </div>
+        
+        <div id="authStatus" class="mt-6 p-4 info-banner rounded-lg hidden text-sm text-center"></div>
+
+        <div id="loggedInView" class="hidden">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 p-4 bg-slate-900/50 rounded-lg">
+                <div class="flex flex-col md:flex-row md:items-start md:gap-x-8">
+                    <div>
+                        <p class="text-lg">Welcome, <span id="usernameDisplay" class="font-bold text-orange-300"></span>!</p>
+                        <p class="text-sm text-slate-400">Email: <span id="emailDisplay"></span></p>
+                    </div>
+                    <div class="text-center md:text-left my-4 md:my-0">
+                        <p class="text-sm text-slate-400">Storage Usage</p>
+                        <p id="storageUsageDisplay" class="text-lg font-semibold">0 GB / 0 GB</p>
+                        <button id="requestStorageBtn" class="text-xs text-orange-400 hover:underline">Request More</button>
+                    </div>
+                </div>
+                <div class="mt-4 md:mt-0">
+                    <button id="logoutBtn" class="btn btn-custom-primary text-sm py-2 px-4">Logout</button>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div>
+                    <label for="fileUrl" class="block text-sm font-medium text-slate-300 mb-2">Mirror from URL</label>
+                    <input type="url" id="fileUrl" name="fileUrl" placeholder="e.g., https://example.com/my_file.zip"
+                           class="mt-1 block w-full px-4 py-2 border border-orange-500/40 bg-slate-800 text-EDEDF3 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-150 ease-in-out text-sm placeholder-slate-400 shadow-inner">
+                </div>
+
+                <div class="relative flex py-5 items-center">
+                    <div class="flex-grow border-t border-orange-500/40"></div>
+                    <span class="flex-shrink mx-4 text-slate-300">OR</span>
+                    <div class="flex-grow border-t border-orange-500/40"></div>
+                </div>
+
+                <div>
+                    <label for="localFile" class="block text-sm font-medium text-slate-300 mb-2">Upload Local File</label>
+                    <label class="block w-full px-4 py-2 border border-orange-500/40 rounded-lg shadow-sm cursor-pointer bg-slate-800 hover:bg-slate-700/70 flex items-center justify-between transition duration-150 ease-in-out">
+                        <span id="fileNameDisplay" class="text-slate-400 flex-1 truncate pr-2">No file chosen</span>
+                        <input type="file" id="localFile" name="localFile" class="sr-only">
+                        <span class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md btn btn-custom-primary">
+                            Browse
+                        </span>
+                    </label>
+                </div>
+
+                <button id="mirrorButton" class="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-md text-lg font-medium btn btn-custom-primary">
+                    <span id="mirrorButtonText">Start Mirroring</span>
+                    <i id="mirrorSpinner" class="fas fa-spinner fa-spin ml-2 hidden"></i>
+                </button>
+
+                <div id="uploadProgressContainer" class="mt-4 hidden">
+                    <div class="w-full bg-slate-700 rounded-full h-2.5 dark:bg-slate-700">
+                        <div id="progressBar" class="bg-orange-500 h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                    </div>
+                    <p id="progressText" class="text-sm text-slate-400 mt-2 text-center">Waiting to start...</p>
+                </div>
+            </div>
+            
+            <div id="mirrorStatus" class="mt-6 p-4 info-banner rounded-lg hidden text-sm"></div>
+
+            <div class="mt-12 pt-8 border-t border-orange-500/30">
+                <div id="galleryHeader" class="text-center mb-6">
+                    <h2 class="text-3xl font-bold page-title drop-shadow-lg mb-4">My Mirrored Files</h2>
+                    <div class="flex justify-center items-center gap-4">
+                        <button id="expandCompactBtn" class="hidden xl:inline-flex items-center btn btn-nav text-sm">
+                            <span id="expandBtnText">Expand View</span>
+                            <i id="expandBtnIcon" class="fas fa-chevron-down ml-2 transition-transform duration-300"></i>
+                        </button>
+                        <button id="toggleControlsBtn" class="inline-flex items-center btn btn-nav text-sm">
+                            <span id="toggleControlsBtnText">Show Filters</span>
+                            <i id="toggleControlsBtnIcon" class="fas fa-chevron-down ml-2 transition-transform duration-300"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="galleryControls" class="gallery-controls bg-slate-900/50 rounded-lg border border-orange-500/20 mb-6">
+                    <div class="p-4 md:p-6 space-y-6">
+                        <div>
+                            <h3 class="text-lg font-semibold text-orange-300 mb-3">Grid View</h3>
+                            <div id="gridControls" class="flex flex-wrap gap-3">
+                                <button class="control-btn active" data-cols="3">3 Columns</button>
+                                <button class="control-btn" data-cols="4">4 Columns</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-orange-300 mb-3">File Type</h3>
+                            <div id="typeControls" class="flex flex-wrap gap-3">
+                                <button class="control-btn active" data-type="all">All</button>
+                                <button class="control-btn" data-type="image">Images</button>
+                                <button class="control-btn" data-type="video">Videos</button>
+                                <button class="control-btn" data-type="document">Documents</button>
+                                <button class="control-btn" data-type="audio">Audio</button>
+                                <button class="control-btn" data-type="archive">Archives</button>
+                                <button class="control-btn" data-type="other">Other</button>
+                            </div>
+                        </div>
+                         <div>
+                            <h3 class="text-lg font-semibold text-orange-300 mb-3">Sort By</h3>
+                            <div id="sortControls" class="flex flex-wrap gap-3">
+                                <button class="control-btn active" data-sort="mirrored_at">Recent</button>
+                                <button class="control-btn" data-sort="name">Name</button>
+                                <button class="control-btn" data-sort="size">Size</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="fileGallery" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Dynamic file cards will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-slate-800 p-6 rounded-lg shadow-xl border border-orange-500/40 max-w-sm mx-4 text-center">
+            <p id="confirmationMessage" class="text-white text-lg mb-6"></p>
+            <div class="flex justify-center gap-4">
+                <button id="confirmBtn" class="btn btn-custom-primary">Confirm</button>
+                <button id="cancelBtn" class="btn btn-nav">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Dynamic Backend Configuration ---
+        // This block works for local testing (opening the file directly) and for the live deployed site.
+        const isLocal = window.location.protocol === 'file:' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+        const BACKEND_URL = isLocal ? 'http://127.0.0.1:5000' : 'https://api.mirror.projectglyphmotion.studio';
+
+        // --- Universal Constants (used across multiple files) ---
+        // Define all constants here so they are available in every file, preventing ReferenceErrors.
+        const POLLING_INTERVAL_SERVER_HEALTH = 10000; // A consistent interval for health checks.
+        const HEALTH_STATUS_ENDPOINT = `${BACKEND_URL}/status`;
+
+        // --- Page-Specific Endpoint Constants ---
+        // For apply.html
+        const API_ENDPOINT = `${BACKEND_URL}/apply-form`;
+        const STATUS_API_ENDPOINT = `${BACKEND_URL}/api/application/status`;
+
+        // For admin_login.html
+        const CONFIG_ENDPOINT = `${BACKEND_URL}/api/auth/config`;
+        const LOGIN_ENDPOINT = `${BACKEND_URL}/api/auth/admin_login`;
+
+
+        // --- DOM Elements ---
+        const loggedOutView = document.getElementById('loggedOutView');
+        const loggedInView = document.getElementById('loggedInView');
+        const googleSignInBtnContainer = document.getElementById('googleSignInBtnContainer');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const emailDisplay = document.getElementById('emailDisplay');
+        const storageUsageDisplay = document.getElementById('storageUsageDisplay');
+        const serverStatusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const localFileInput = document.getElementById('localFile');
+        const fileUrlInput = document.getElementById('fileUrl');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const mainContentCard = document.getElementById('mainContentCard');
+        const adminLoginContainer = document.getElementById('adminLoginContainer');
+        const authStatus = document.getElementById('authStatus');
+        const mirrorStatus = document.getElementById('mirrorStatus');
+        const mirrorButton = document.getElementById('mirrorButton');
+        const mirrorButtonText = document.getElementById('mirrorButtonText');
+        const mirrorSpinner = document.getElementById('mirrorSpinner');
+        const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const galleryHeader = document.getElementById('galleryHeader');
+        const expandCompactBtn = document.getElementById('expandCompactBtn');
+        const expandBtnText = document.getElementById('expandBtnText');
+        const expandBtnIcon = document.getElementById('expandBtnIcon');
+        const toggleControlsBtn = document.getElementById('toggleControlsBtn');
+        const toggleControlsBtnText = document.getElementById('toggleControlsBtnText');
+        const toggleControlsBtnIcon = document.getElementById('toggleControlsBtnIcon');
+        const galleryControls = document.getElementById('galleryControls');
+        const gridControls = document.getElementById('gridControls');
+        const typeControls = document.getElementById('typeControls');
+        const sortControls = document.getElementById('sortControls');
+        const fileGallery = document.getElementById('fileGallery');
+        const confirmationModal = document.getElementById('confirmationModal');
+        const confirmationMessage = document.getElementById('confirmationMessage');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        // --- App State ---
+        let appState = {
+            isViewExpanded: false,
+            googleClientId: null,
+            userToken: null,
+            userData: null,
+            files: [],
+            filters: {
+                type: 'all',
+                sort: 'mirrored_at',
+                order: 'desc'
+            },
+            currentEventSource: null,
+        };
+
+        // --- Utility Functions ---
+        const formatBytes = (bytes, decimals = 2) => {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        };
+        
+        const formatDateTime = (isoString) => {
+            if (!isoString) return 'N/A';
+            const date = new Date(isoString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        };
+
+        const formatSpeed = (bytesPerSecond, decimals = 2) => {
+            if (bytesPerSecond === 0) return '0 B/s';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s', 'TB/s', 'PB/s'];
+            const i = Math.floor(Math.log(bytesPerSecond) / Math.log(k));
+            return parseFloat((bytesPerSecond / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        };
+
+        const showStatusMessage = (element, message, isError = false, isPermanent = false) => {
+            element.innerHTML = message;
+            element.className = `mt-6 p-4 rounded-lg text-sm ${isError ? 'info-banner error-banner' : 'info-banner success-banner'}`;
+            element.classList.remove('hidden');
+            if (!isPermanent) {
+                setTimeout(() => element.classList.add('hidden'), 6000);
+            }
+        };
+
+        // --- Server Health Check ---
+        async function checkServerHealth() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/status`);
+                if (response.ok) {
+                    serverStatusText.textContent = 'Online';
+                    statusDot.className = 'status-dot online';
+                } else {
+                    throw new Error('Server not responding');
+                }
+            } catch (error) {
+                serverStatusText.textContent = 'Offline';
+                statusDot.className = 'status-dot offline';
+                console.error('Server health check failed:', error);
+            }
+        }
+
+        // --- View Mode Logic ---
+        function applyViewMode(expanded) {
+            appState.isViewExpanded = expanded;
+            if (appState.userToken) {
+                mainContentCard.classList.toggle('max-w-full', expanded);
+                mainContentCard.classList.toggle('max-w-7xl', !expanded);
+            } else {
+                mainContentCard.classList.remove('max-w-full');
+                mainContentCard.classList.add('max-w-7xl');
+            }
+            if(expandBtnText) expandBtnText.textContent = expanded ? 'Compact View' : 'Expand View';
+            if(expandBtnIcon) expandBtnIcon.classList.toggle('rotate-180', expanded);
+        }
+
+        // --- Confirmation Modal Logic ---
+        function showConfirmationModal(message, onConfirm) {
+            confirmationMessage.textContent = message;
+            confirmationModal.classList.remove('hidden');
+            confirmBtn.onclick = () => {
+                confirmationModal.classList.add('hidden');
+                onConfirm();
+            };
+            cancelBtn.onclick = () => confirmationModal.classList.add('hidden');
+        }
+
+        // --- Authentication ---
+        async function initializeGoogleSignIn() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/config`);
+                const config = await response.json();
+                appState.googleClientId = config.client_id;
+
+                if (!appState.googleClientId) throw new Error("Client ID not found");
+
+                google.accounts.id.initialize({
+                    client_id: appState.googleClientId,
+                    callback: handleCredentialResponse
+                });
+                google.accounts.id.renderButton(
+                    googleSignInBtnContainer,
+                    { theme: "outline", size: "large", type: "standard", text: "signin_with" }
+                );
+                google.accounts.id.prompt();
+            } catch (error) {
+                console.error("Failed to initialize Google Sign-In:", error);
+                showStatusMessage(authStatus, "Could not connect to authentication service.", true);
+            }
+        }
+
+        async function handleCredentialResponse(response) {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/auth/user_login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: response.credential })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    appState.userToken = response.credential;
+                    localStorage.setItem('glyphmirror_token', appState.userToken);
+                    showLoggedInUI();
+                } else {
+                    throw new Error(data.message || "Login failed.");
+                }
+            } catch (error) {
+                console.error("Login verification failed:", error);
+                showStatusMessage(authStatus, error.message, true);
+            }
+        }
+
+        function handleLogout() {
+            showConfirmationModal('Are you sure you want to logout?', () => {
+                appState.userToken = null;
+                appState.userData = null;
+                localStorage.removeItem('glyphmirror_token');
+                google.accounts.id.disableAutoSelect();
+                
+                loggedInView.classList.add('hidden');
+                loggedOutView.classList.remove('hidden');
+                adminLoginContainer.classList.remove('hidden');
+                authStatus.classList.add('hidden');
+                
+                applyViewMode(false);
+                usernameDisplay.textContent = '';
+                emailDisplay.textContent = '';
+                storageUsageDisplay.textContent = '0 GB / 0 GB';
+            });
+        }
+
+        // --- UI Updates ---
+        async function showLoggedInUI() {
+            loggedOutView.classList.add('hidden');
+            authStatus.classList.add('hidden');
+            adminLoginContainer.classList.add('hidden');
+            loggedInView.classList.remove('hidden');
+
+            const savedViewMode = localStorage.getItem('glyphmirrorViewExpanded') === 'true';
+            applyViewMode(savedViewMode);
+
+            await fetchUserData();
+        }
+
+        async function fetchUserData() {
+            if (!appState.userToken) return;
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/user/data`, {
+                    headers: { 'Authorization': `Bearer ${appState.userToken}` }
+                });
+                if (!res.ok) throw new Error(`Failed to fetch user data. Server responded with ${res.status}`);
+                
+                appState.userData = await res.json();
+                appState.files = appState.userData.files || [];
+
+                usernameDisplay.textContent = appState.userData.username || 'User';
+                emailDisplay.textContent = appState.userData.email || 'N/A';
+                const usage = formatBytes(appState.userData.usage_bytes || 0);
+                const quota = `${appState.userData.quota_gb || 0} GB`;
+                storageUsageDisplay.textContent = `${usage} / ${quota}`;
+
+                renderFiles();
+
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+                showStatusMessage(mirrorStatus, "Could not load your profile. Please try logging in again.", true);
+            }
+        }
+
+        // --- File Gallery Rendering ---
+        function getFileType(filename) {
+            const extension = (filename || '').split('.').pop().toLowerCase();
+            const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+            const videoTypes = ['mp4', 'webm', 'mov', 'avi', 'mkv'];
+            const docTypes = ['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx'];
+            const audioTypes = ['mp3', 'wav', 'aac', 'flac', 'ogg'];
+            const archiveTypes = ['zip', 'rar', '7z', 'tar', 'gz'];
+
+            if (imageTypes.includes(extension)) return 'image';
+            if (videoTypes.includes(extension)) return 'video';
+            if (docTypes.includes(extension)) return 'document';
+            if (audioTypes.includes(extension)) return 'audio';
+            if (archiveTypes.includes(extension)) return 'archive';
+            return 'other';
+        }
+        
+        function getFileTypeIcon(fileType) {
+            switch (fileType) {
+                case 'image': return 'fa-solid fa-file-image';
+                case 'video': return 'fa-solid fa-file-video';
+                case 'document': return 'fa-solid fa-file-lines';
+                case 'audio': return 'fa-solid fa-file-audio';
+                case 'archive': return 'fa-solid fa-file-zipper';
+                default: return 'fa-solid fa-file';
+            }
+        }
+
+        function getDriveIdFromLink(url) {
+            if (!url) return null;
+            const match = url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
+            return match ? match[1] : null;
+        }
+
+        function renderFiles() {
+            fileGallery.innerHTML = ''; 
+
+            if (!appState.files || appState.files.length === 0) {
+                fileGallery.innerHTML = `<p id="noFilesMessage" class="text-center text-slate-400 col-span-full">You haven't mirrored any files yet.</p>`;
+                return;
+            }
+
+            let filteredFiles = appState.files.filter(file => {
+                if (appState.filters.type === 'all') return true;
+                return getFileType(file.name) === appState.filters.type;
+            });
+
+            filteredFiles.sort((a, b) => {
+                let valA, valB;
+                switch (appState.filters.sort) {
+                    case 'name':
+                        valA = (a.name || '').toLowerCase();
+                        valB = (b.name || '').toLowerCase();
+                        break;
+                    case 'size':
+                        valA = a.size || 0;
+                        valB = b.size || 0;
+                        break;
+                    default:
+                        valA = new Date(a.mirrored_at || 0);
+                        valB = new Date(b.mirrored_at || 0);
+                        break;
+                }
+                
+                if (valA < valB) return appState.filters.order === 'asc' ? -1 : 1;
+                if (valA > valB) return appState.filters.order === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            filteredFiles.forEach(file => {
+                const fileType = getFileType(file.name);
+                const driveId = getDriveIdFromLink(file.drive_link);
+                let previewContentHTML = '';
+                let isPlayable = false;
+
+                const audioFallback = 'images/audio_fallback.webp';
+                const archiveFallback = 'images/archive_fallback.webp';
+                const otherFallback = 'images/other_fallback.webp';
+
+                if (fileType === 'image' || fileType === 'document') {
+                    const previewUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : '';
+                    previewContentHTML = `<iframe src="${previewUrl}" loading="lazy" class="w-full h-full" allowfullscreen></iframe>`;
+                } else if (fileType === 'video') {
+                    // NEW: Load video iframe directly on page load.
+                    const previewUrl = driveId ? `https://drive.google.com/file/d/${driveId}/preview` : '';
+                    previewContentHTML = `<iframe src="${previewUrl}" loading="lazy" class="w-full h-full" allowfullscreen></iframe>`;
+                    isPlayable = true;
+                } else if (fileType === 'audio') {
+                    // Audio still uses a thumbnail until clicked.
+                    previewContentHTML = `<img src="${audioFallback}" alt="Audio file" class="w-full h-full object-cover">`;
+                    isPlayable = true;
+                } else if (fileType === 'archive') {
+                    previewContentHTML = `<img src="${archiveFallback}" alt="Archive file" class="w-full h-full object-cover">`;
+                } else { // 'other'
+                    previewContentHTML = `<img src="${otherFallback}" alt="File" class="w-full h-full object-cover">`;
+                }
+
+                const cardHTML = `
+                    <div class="file-card" data-file-id="${file.id}">
+                        <div class="file-card-preview-wrapper" 
+                             data-drive-id="${driveId || ''}" 
+                             data-file-type="${fileType}" 
+                             data-file-name="${file.name || ''}"
+                             data-is-playable="${isPlayable}">
+                            <div class="file-card-preview-content">
+                                ${previewContentHTML}
+                            </div>
+                            ${isPlayable && fileType === 'audio' ? '<div class="play-overlay-icon"><i class="fas fa-play-circle"></i></div>' : ''}
+                        </div>
+                        <div class="file-card-info">
+                            <div class="file-card-details">
+                                <div class="file-type-icon">
+                                    <i class="${getFileTypeIcon(fileType)}"></i>
+                                </div>
+                                <div class="file-text-details">
+                                    <h4 class="font-semibold truncate text-white" title="${file.name}">${file.name}</h4>
+                                    <p class="text-xs text-slate-300">${formatBytes(file.size)} &bull; ${new Date(file.mirrored_at).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                            <div class="file-card-actions">
+                                <a href="${file.drive_link}" target="_blank" rel="noopener noreferrer" class="card-action-btn" title="Download">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                <button class="card-action-btn delete" data-file-id="${file.id}" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                fileGallery.insertAdjacentHTML('beforeend', cardHTML);
+            });
+
+            fileGallery.querySelectorAll('.card-action-btn.delete').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const fileId = e.currentTarget.dataset.fileId;
+                    showConfirmationModal('Are you sure you want to delete this file? This action cannot be undone.', () => {
+                        deleteFile(fileId);
+                    });
+                });
+            });
+        }
+
+
+        // --- On-demand media loading and frame-dropping logic (REFACTORED) ---
+        function deactivateMedia(previewWrapper) {
+            if (!previewWrapper) return;
+
+            const fileType = previewWrapper.dataset.fileType;
+            const previewContentEl = previewWrapper.querySelector('.file-card-preview-content');
+            
+            if (fileType === 'video') {
+                const iframe = previewContentEl.querySelector('iframe');
+                if (iframe) {
+                    // Reloading the iframe src stops the video playback without removing the element.
+                    iframe.src = iframe.src;
+                }
+            } else if (fileType === 'audio') {
+                // For audio, we revert to the thumbnail image as there's no visual frame to preserve.
+                const audioFallback = 'images/audio_fallback.png';
+                previewContentEl.innerHTML = `<img src="${audioFallback}" alt="Audio file" class="w-full h-full object-cover">`;
+            }
+            
+            delete previewWrapper.dataset.isPlaying;
+        }
+
+        function setActiveMedia(targetPreviewWrapper) {
+            if (!targetPreviewWrapper || targetPreviewWrapper.dataset.isPlayable !== 'true') return;
+            
+            // If the user interacts with the same media again, do nothing.
+            if (targetPreviewWrapper.dataset.isPlaying === 'true') {
+                return;
+            }
+
+            // Find any other media that is currently active and deactivate it.
+            const currentlyPlaying = fileGallery.querySelector('.file-card-preview-wrapper[data-is-playing="true"]');
+            if (currentlyPlaying && currentlyPlaying !== targetPreviewWrapper) {
+                deactivateMedia(currentlyPlaying);
+            }
+
+            // Now, "activate" the target media.
+            const fileType = targetPreviewWrapper.dataset.fileType;
+            const driveId = targetPreviewWrapper.dataset.driveId;
+            const previewContentEl = targetPreviewWrapper.querySelector('.file-card-preview-content');
+
+            // For audio, we still need to load the iframe on demand when it's clicked.
+            if (fileType === 'audio') {
+                if (driveId && previewContentEl) {
+                    const previewUrl = `https://drive.google.com/file/d/${driveId}/preview`;
+                    previewContentEl.innerHTML = `<iframe src="${previewUrl}" allow="autoplay" allowfullscreen="true" class="w-full h-full border-0"></iframe>`;
+                }
+            }
+            // For video, the iframe is already present. The user's interaction (clicking inside the iframe) will start playback.
+            // We just need to mark it as the currently "active" one.
+
+            targetPreviewWrapper.dataset.isPlaying = 'true';
+        }
+
+
+        // --- Mirroring Logic ---
+        async function handleMirrorSubmit(e) {
+            e.preventDefault();
+            const url = fileUrlInput.value;
+            const file = localFileInput.files[0];
+
+            if (!url && !file) {
+                showStatusMessage(mirrorStatus, "Please provide a URL or select a file.", true);
+                return;
+            }
+
+            mirrorButton.disabled = true;
+            mirrorButtonText.textContent = "Starting...";
+            mirrorSpinner.classList.remove('hidden');
+            uploadProgressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Initializing...';
+            mirrorStatus.classList.add('hidden');
+
+            const formData = new FormData();
+            if (url) {
+                formData.append('fileUrl', url);
+            } else {
+                formData.append('localFile', file);
+            }
+
+            try {
+                const initRes = await fetch(`${BACKEND_URL}/api/mirror/initiate_upload`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${appState.userToken}` },
+                    body: formData
+                });
+
+                const initData = await initRes.json();
+
+                if (!initRes.ok || !initData.success) {
+                    throw new Error(initData.message || "Failed to initiate mirroring.");
+                }
+
+                const mirrorSessionId = initData.mirror_session_id;
+                progressText.textContent = 'Upload initiated. Connecting to progress stream...';
+
+                if (appState.currentEventSource) {
+                    appState.currentEventSource.close();
+                }
+
+                appState.currentEventSource = new EventSource(`${BACKEND_URL}/api/mirror/stream_progress/${mirrorSessionId}?token=${appState.userToken}`);
+
+                appState.currentEventSource.onopen = () => {
+                    console.log('SSE connection opened.');
+                    progressText.textContent = 'Connected. Waiting for progress updates...';
+                };
+
+                appState.currentEventSource.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('Progress update:', data);
+
+                    if (data.status === 'progress') {
+                        const percentage = Math.round(data.percentage);
+                        const speed = data.speed ? ` (${formatSpeed(data.speed)})` : '';
+                        progressBar.style.width = `${percentage}%`;
+                        progressText.textContent = `Mirroring: ${percentage}% - ${data.message}${speed}`;
+                    } else if (data.status === 'complete') {
+                        progressBar.style.width = '100%';
+                        progressText.textContent = `Mirroring Complete! ${data.message}`;
+                        showStatusMessage(mirrorStatus, `✅ Success! File "${data.file_name}" mirrored.`, false);
+                        
+                        appState.currentEventSource.close();
+                        appState.currentEventSource = null;
+                        mirrorButton.disabled = false;
+                        mirrorButtonText.textContent = "Start Mirroring";
+                        mirrorSpinner.classList.add('hidden');
+                        uploadProgressContainer.classList.add('hidden');
+                        fileUrlInput.value = '';
+                        localFileInput.value = '';
+                        fileNameDisplay.textContent = 'No file chosen';
+                        fetchUserData();
+                    } else if (data.status === 'error') {
+                        throw new Error(data.message || 'An unknown error occurred during mirroring.');
+                    }
+                };
+
+                appState.currentEventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    const errorMessage = (error && error.message) ? error.message : 'Connection lost or server error.';
+                    showStatusMessage(mirrorStatus, `❌ Mirroring Error: ${errorMessage}`, true);
+                    if(appState.currentEventSource) appState.currentEventSource.close();
+                    appState.currentEventSource = null;
+                    
+                    mirrorButton.disabled = false;
+                    mirrorButtonText.textContent = "Start Mirroring";
+                    mirrorSpinner.classList.add('hidden');
+                    uploadProgressContainer.classList.add('hidden');
+                };
+
+            } catch (error) {
+                console.error("Mirroring process failed:", error);
+                showStatusMessage(mirrorStatus, `❌ Error: ${error.message}`, true);
+                
+                if (appState.currentEventSource) {
+                    appState.currentEventSource.close();
+                    appState.currentEventSource = null;
+                }
+                mirrorButton.disabled = false;
+                mirrorButtonText.textContent = "Start Mirroring";
+                mirrorSpinner.classList.add('hidden');
+                uploadProgressContainer.classList.add('hidden');
+            }
+        }
+
+        // --- Delete File Logic ---
+        async function deleteFile(fileId) {
+            try {
+                showStatusMessage(mirrorStatus, "Deleting file...", false, true);
+                const res = await fetch(`${BACKEND_URL}/api/files/delete`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${appState.userToken}` 
+                    },
+                    body: JSON.stringify({ fileId: fileId })
+                });
+
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.message || "Failed to delete file.");
+                }
+
+                showStatusMessage(mirrorStatus, `🗑️ File deleted successfully!`, false);
+                await fetchUserData();
+            } catch (error) {
+                console.error("Delete error:", error);
+                showStatusMessage(mirrorStatus, `❌ Error deleting file: ${error.message}`, true);
+            }
+        }
+
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            checkServerHealth();
+            setInterval(checkServerHealth, POLLING_INTERVAL_SERVER_HEALTH);
+            initializeGoogleSignIn();
+
+            const token = localStorage.getItem('glyphmirror_token');
+            if (token) {
+                appState.userToken = token;
+                showLoggedInUI();
+            }
+        });
+
+        logoutBtn.addEventListener('click', handleLogout);
+        mirrorButton.addEventListener('click', handleMirrorSubmit);
+
+        localFileInput.addEventListener('change', (e) => {
+            fileNameDisplay.textContent = e.target.files.length > 0 ? e.target.files[0].name : 'No file chosen';
+        });
+
+        // --- Gallery Control Logic ---
+        if (expandCompactBtn) {
+            expandCompactBtn.addEventListener('click', () => {
+                const newViewMode = !appState.isViewExpanded;
+                localStorage.setItem('glyphmirrorViewExpanded', newViewMode);
+                applyViewMode(newViewMode);
+                // Scroll to the gallery header on expand
+                if (newViewMode) {
+                    setTimeout(() => {
+                        galleryHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                }
+            });
+        }
+        
+        if (toggleControlsBtn) {
+            toggleControlsBtn.addEventListener('click', () => {
+                const isExpanded = galleryControls.classList.toggle('expanded');
+                toggleControlsBtnText.textContent = isExpanded ? 'Hide Filters' : 'Show Filters';
+                toggleControlsBtnIcon.classList.toggle('rotate-180', isExpanded);
+                // Scroll to the gallery header when showing filters
+                if (isExpanded) {
+                    setTimeout(() => {
+                        galleryHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
+                }
+            });
+        }
+
+        function handleControlButtonClick(container, stateKey) {
+             if(container) {
+                container.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        container.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                        e.target.classList.add('active');
+                        
+                        if (stateKey === 'cols') {
+                            const cols = e.target.dataset.cols;
+                            fileGallery.className = `grid gap-8 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-${cols}`;
+                        } else {
+                            appState.filters[stateKey] = e.target.dataset[stateKey];
+                            renderFiles();
+                        }
+                    }
+                });
+            }
+        }
+
+        handleControlButtonClick(gridControls, 'cols');
+        handleControlButtonClick(typeControls, 'type');
+        handleControlButtonClick(sortControls, 'sort');
+
+        // REFACTORED: Central event listener for media interaction
+        fileGallery.addEventListener('click', function(e) {
+            // We want the click on the preview wrapper, not the buttons inside the info bar
+            const previewWrapper = e.target.closest('.file-card-preview-wrapper');
+            if (previewWrapper) {
+                setActiveMedia(previewWrapper);
+            }
+        });
+        
+        // --- General UI Effects ---
+        document.querySelectorAll('.btn').forEach(button => {
+            button.addEventListener('click', function(e) {
+                if (this.disabled) return;
+                this.classList.remove('clicked');
+                void this.offsetWidth;
+                this.classList.add('clicked');
+            });
+        });
+
+    </script>
+</body>
+</html>
